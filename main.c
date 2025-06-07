@@ -25,7 +25,7 @@
 
 /* - DEFINITIONS - */
 
-#define UTF8_CHCP_CMD "chcp 65001"
+#define WIN_UTF8_CHCP_CMD "chcp 65001"
 
 /* - ENUMS - */
 
@@ -47,17 +47,17 @@ typedef enum : int {
 
 /* - TYPES - */
 
-typedef struct {
-  const char *const *const KEYWORDS;
-  const size_t NUM_KEYWORDS;
-  const user_action ACTION;
+typedef const struct {
+  const char *const *KEYWORDS;
+  size_t NUM_KEYWORDS;
+  user_action ACTION;
 } keyword_group;
 
 typedef void (*const translator_func)(const_string);
 
-typedef struct {
+typedef const struct {
   translator_func TRANSLATOR;
-  const char *const NAME;
+  const char *NAME;
   const translator_type TYPE;
 } wd_translator;
 
@@ -68,12 +68,12 @@ static void wd_to_ascii_translator(const_string);
 
 /* - CONSTANTS - */
 
-static const keyword_group KEYWORDS[] = {
+static keyword_group KEYWORDS[] = {
     CONSTRUCT_KEYWORD_GROUP(UA_EXIT, "!exit", "!quit"),
     CONSTRUCT_KEYWORD_GROUP(UA_SWITCH, "!switch", "!chg"),
 };
 
-static const wd_translator TRANSLATORS[] = {
+static wd_translator TRANSLATORS[] = {
     CONSTRUCT_WD_TRANSLATOR(ascii_to_wd_translator, TM_ASCII_TO_WD),
     CONSTRUCT_WD_TRANSLATOR(wd_to_ascii_translator, TM_WD_TO_ASCII),
 };
@@ -91,7 +91,15 @@ static inline void display_translators(void) {
   fflush(stdout);
 }
 
-static inline translator_type get_translator_option(void) {
+[[unsequenced]]
+static inline wd_translator *get_translator(const translator_type type) {
+  for (size_t i = 0; i < ARR_LEN(TRANSLATORS); i++)
+    if (TRANSLATORS[i].TYPE == type) return TRANSLATORS + i;
+  return nullptr;
+}
+
+[[nodiscard]]
+static inline wd_translator *get_translator_option(void) {
   translator_type type;
   string buf = string_write_from_stream_(NULL, stdin, '\n');
   while (true) {
@@ -102,9 +110,10 @@ static inline translator_type get_translator_option(void) {
     string_write_from_stream(buf, stdin, '\n');
   }
   string_delete(buf);
-  return type;
+  return get_translator(type);
 }
 
+[[unsequenced]]
 static inline bool is_valid_translator_mode(const translator_type mode) {
   switch (mode) {
     case TM_ASCII_TO_WD:
@@ -114,10 +123,11 @@ static inline bool is_valid_translator_mode(const translator_type mode) {
   return false;
 }
 
+[[unsequenced]]
 static inline user_action is_user_action(const_string str) {
   for (size_t i = 0; i < ARR_LEN(KEYWORDS); i++) {
     const keyword_group *const group = KEYWORDS + i;
-    for (size_t j = 0; i < group->NUM_KEYWORDS; j++)
+    for (size_t j = 0; j < group->NUM_KEYWORDS; j++)
       if (string_equals(str, group->KEYWORDS[j])) return group->ACTION;
   }
   return UA_NONE;
@@ -125,17 +135,10 @@ static inline user_action is_user_action(const_string str) {
 
 static inline void init(void) {
 #ifdef _WIN32
-  if (system(NULL) && prompt_chcp_change()) system(UTF8_CHCP_CMD);
+  if (system(NULL) && prompt_chcp_change()) system(WIN_UTF8_CHCP_CMD);
 #endif
   setlocale(LC_CTYPE, "en_US.UTF-8");
   setvbuf(stdout, NULL, _IOFBF, BUFSIZ);
-}
-
-static inline const wd_translator *get_translator(translator_type type) {
-  for (size_t i = 0; i < ARR_LEN(TRANSLATORS); i++) {
-    if (type == TRANSLATORS[i].TYPE) return TRANSLATORS + i;
-  }
-  return NULL;
 }
 
 /* - PROMPTS - */
@@ -145,33 +148,54 @@ static inline bool prompt_chcp_change(void) {
   puts("This program relies on UTF-8 encoding for full functionality.");
   puts("Querying current code page...");
   system("chcp");
-  puts("Allow this program to run \"" UTF8_CHCP_CMD "\"?");
+  puts("Allow this program to run \"" WIN_UTF8_CHCP_CMD "\"?");
   return system("choice") == 1;  // `choice` returns `1` by default for `y`.
 }
 
-[[nodiscard]] static inline translator_type prompt_translator(void) {
+static inline wd_translator *prompt_translator(void) {
   puts("Which translator would you like to use?");
   display_translators();
   return get_translator_option();
 }
 
+static inline string prompt_translator_input(string_ref buf) {
+  fputs("Enter text: ", stdout);
+  fflush(stdout);
+  return string_write_from_stream_(buf, stdin, '\n');
+}
+
 /* - TRANSLATORS - */
 
-static void ascii_to_wd_translator(const_string input) {}
+static inline void ascii_to_wd_translator(const_string input) {
+  string translation = ascii_str_to_wd_str(input);
+  puts(translation);
+  fflush(stdout);
+  string_delete(translation);
+}
 
-static void wd_to_ascii_translator(const_string input) {}
+static inline void wd_to_ascii_translator(const_string input) {
+  string translation = wd_str_to_ascii_str(input);
+  puts(translation);
+  fflush(stdout);
+  string_delete(translation);
+}
 
-static inline void translator_intermediary(translator_type mode) {
-  string buf = string_write_from_stream_(NULL, stdin, '\n');
-  const user_action action = is_user_action(buf);
-  switch (action) {
-    case UA_NONE:
-      
-      break;
-    case UA_EXIT:
-      return;
-    case UA_SWITCH:
-      mode = prompt_translator();
+static inline void translator_intermediary(wd_translator *translator) {
+  string buf = prompt_translator_input(NULL);  // Initialize the buffer
+  while (true) {
+    const user_action ACTION = is_user_action(buf);
+    switch (ACTION) {
+      case UA_NONE:
+        translator->TRANSLATOR(buf);
+        break;
+      case UA_EXIT:
+        string_delete(buf);
+        return;
+      case UA_SWITCH:
+        translator = prompt_translator();
+    }
+    string_clear(buf);
+    prompt_translator_input(&buf);
   }
 }
 
