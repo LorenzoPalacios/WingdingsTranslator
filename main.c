@@ -1,151 +1,182 @@
+#include <locale.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "C-MyBasics/strext/strext.h"
+#include "myclib/include/myclib.h"
+#include "myclib/str/str.h"
 #include "wdtranslator/wdtranslator.h"
 
-#define CODE_ASCII_TO_WD (1)
-#define CODE_WD_TO_ASCII (2)
+/* - CONVENIENCE MACROS - */
 
-#define KEYWORD_EXIT "!exit"
-#define KEYWORD_SWITCH "!chg"
-#define ACTION_CODE_NONE (-1)
-#define ACTION_CODE_EXIT (1)
-#define ACTION_CODE_SWITCH (2)
-#define KEYWORD_MAX_SIZE                                \
-  (KEYWORD_EXIT > KEYWORD_SWITCH ? sizeof(KEYWORD_EXIT) \
-                                 : sizeof(KEYWORD_SWITCH))
+#define CONSTRUCT_KEYWORD_GROUP(action, ...)                  \
+  (keyword_group) {                                           \
+    .ACTION = (action),                                       \
+    .NUM_KEYWORDS = ARR_LEN(((const char *[]){__VA_ARGS__})), \
+    .KEYWORDS = (const char *[]){__VA_ARGS__},                \
+  }
 
-#define FILEPATH_MAX_LENGTH (4096)
+#define CONSTRUCT_WD_TRANSLATOR(translator_func, type) \
+  ((wd_translator){.TRANSLATOR = (translator_func),    \
+                   .NAME = STRINGIFY(translator_func), \
+                   .TYPE = (type)})
 
-typedef int translator_code_t;
-typedef int action_code_t;
+/* - DEFINITIONS - */
 
-static action_code_t is_keyword(const char *const str) {
-  if (strcmp(str, KEYWORD_EXIT) == 0) return ACTION_CODE_EXIT;
-  if (strcmp(str, KEYWORD_SWITCH) == 0) return ACTION_CODE_SWITCH;
-  return ACTION_CODE_NONE;
+#define UTF8_CHCP_CMD "chcp 65001"
+
+/* - ENUMS - */
+
+typedef enum : unsigned {
+  TM_ASCII_TO_WD = 1,
+  TM_WD_TO_ASCII = 2,
+} translator_type;
+
+typedef enum : unsigned {
+  UA_NONE = 0,
+  UA_EXIT = 1,
+  UA_SWITCH = 2,
+} user_action;
+
+typedef enum : int {
+  EC_STDIN_AT_EOF = 1,
+  EC_STRING_CTOR_FAILURE = EC_STDIN_AT_EOF << 1,
+} exit_code;
+
+/* - TYPES - */
+
+typedef struct {
+  const char *const *const KEYWORDS;
+  const size_t NUM_KEYWORDS;
+  const user_action ACTION;
+} keyword_group;
+
+typedef void (*const translator_func)(const_string);
+
+typedef struct {
+  translator_func TRANSLATOR;
+  const char *const NAME;
+  const translator_type TYPE;
+} wd_translator;
+
+/* - TRANSLATOR DECLARATIONS - */
+
+static void ascii_to_wd_translator(const_string);
+static void wd_to_ascii_translator(const_string);
+
+/* - CONSTANTS - */
+
+static const keyword_group KEYWORDS[] = {
+    CONSTRUCT_KEYWORD_GROUP(UA_EXIT, "!exit", "!quit"),
+    CONSTRUCT_KEYWORD_GROUP(UA_SWITCH, "!switch", "!chg"),
+};
+
+static const wd_translator TRANSLATORS[] = {
+    CONSTRUCT_WD_TRANSLATOR(ascii_to_wd_translator, TM_ASCII_TO_WD),
+    CONSTRUCT_WD_TRANSLATOR(wd_to_ascii_translator, TM_WD_TO_ASCII),
+};
+
+/* - FUNCTION DECLARATIONS - */
+
+static bool is_valid_translator_mode(translator_type);
+static bool prompt_chcp_change(void);
+
+/* - UTILITY - */
+
+static inline void display_translators(void) {
+  for (size_t i = 0; i < ARR_LEN(TRANSLATORS); i++)
+    printf("%zu. %s\n", i + 1, TRANSLATORS[i].NAME);
+  fflush(stdout);
 }
 
-static FILE *open_stream_from_user(const char *const mode) {
-  char filepath_buf[FILEPATH_MAX_LENGTH];
-  for (size_t i = 0; i < sizeof(filepath_buf); i++) {
-    const char c = getchar();
-    if (c == '\n' || c == EOF) {
-      filepath_buf[i] = '\0';
+static inline translator_type get_translator_option(void) {
+  translator_type type;
+  string buf = string_write_from_stream_(NULL, stdin, '\n');
+  while (true) {
+    if (sscanf(buf, "%u", &type) == 1)
+      if (is_valid_translator_mode(type)) break;
+    if (feof(stdin)) exit(EC_STDIN_AT_EOF);
+    string_clear(buf);
+    string_write_from_stream(buf, stdin, '\n');
+  }
+  string_delete(buf);
+  return type;
+}
+
+static inline bool is_valid_translator_mode(const translator_type mode) {
+  switch (mode) {
+    case TM_ASCII_TO_WD:
+    case TM_WD_TO_ASCII:
+      return true;
+  }
+  return false;
+}
+
+static inline user_action is_user_action(const_string str) {
+  for (size_t i = 0; i < ARR_LEN(KEYWORDS); i++) {
+    const keyword_group *const group = KEYWORDS + i;
+    for (size_t j = 0; i < group->NUM_KEYWORDS; j++)
+      if (string_equals(str, group->KEYWORDS[j])) return group->ACTION;
+  }
+  return UA_NONE;
+}
+
+static inline void init(void) {
+#ifdef _WIN32
+  if (system(NULL) && prompt_chcp_change()) system(UTF8_CHCP_CMD);
+#endif
+  setlocale(LC_CTYPE, "en_US.UTF-8");
+  setvbuf(stdout, NULL, _IOFBF, BUFSIZ);
+}
+
+static inline const wd_translator *get_translator(translator_type type) {
+  for (size_t i = 0; i < ARR_LEN(TRANSLATORS); i++) {
+    if (type == TRANSLATORS[i].TYPE) return TRANSLATORS + i;
+  }
+  return NULL;
+}
+
+/* - PROMPTS - */
+
+[[maybe_unused]]
+static inline bool prompt_chcp_change(void) {
+  puts("This program relies on UTF-8 encoding for full functionality.");
+  puts("Querying current code page...");
+  system("chcp");
+  puts("Allow this program to run \"" UTF8_CHCP_CMD "\"?");
+  return system("choice") == 1;  // `choice` returns `1` by default for `y`.
+}
+
+[[nodiscard]] static inline translator_type prompt_translator(void) {
+  puts("Which translator would you like to use?");
+  display_translators();
+  return get_translator_option();
+}
+
+/* - TRANSLATORS - */
+
+static void ascii_to_wd_translator(const_string input) {}
+
+static void wd_to_ascii_translator(const_string input) {}
+
+static inline void translator_intermediary(translator_type mode) {
+  string buf = string_write_from_stream_(NULL, stdin, '\n');
+  const user_action action = is_user_action(buf);
+  switch (action) {
+    case UA_NONE:
+      
       break;
-    }
-    filepath_buf[i] = c;
-  }
-  return fopen(filepath_buf, mode);
-}
-
-static action_code_t ascii_to_wd_translator(void) {
-  fputs("Enter an output path: ", stdout);
-  FILE *const output_stream = open_stream_from_user("a");
-  string_t *ascii_input = new_string(BASE_STR_CAPACITY);
-  string_t *wd_buf = new_string(BASE_STR_CAPACITY);
-  while (1) {
-    fputs("Enter your ASCII text: ", stdout);
-    for (char c = getchar(); c != '\n' && c != EOF; c = getchar())
-      ascii_input = append_char(ascii_input, c);
-    {
-      const action_code_t code = is_keyword(ascii_input->data);
-      if (code != ACTION_CODE_NONE) {
-        delete_string(ascii_input);
-        delete_string(wd_buf);
-        fclose(output_stream);
-        return code;
-      }
-    }
-    wd_buf = ascii_str_to_wd_str(ascii_input->data, wd_buf);
-    fputs(wd_buf->data, output_stream);
-    fputc('\n', output_stream);
-    fflush(output_stream);
-    erase_string_contents(wd_buf);
-    erase_string_contents(ascii_input);
-  }
-}
-
-static inline void consume_line(FILE *const stream) {
-  while (getc(stream) != '\n');
-}
-
-static action_code_t wd_to_ascii_translator(void) {
-  string_t *wd_input = new_string(BASE_STR_CAPACITY);
-  string_t *ascii_buf = new_string(BASE_STR_CAPACITY);
-  while (1) {
-    FILE *input_stream;
-    {
-      /* `open_stream_from_user()` is inlined here for keyword checking. */
-      fputs("Enter a file containing Wingdings: ", stdout);
-      char filepath_buf[FILEPATH_MAX_LENGTH];
-      for (size_t i = 0; i < sizeof(filepath_buf); i++) {
-        const char c = getchar();
-        if (c == '\n' || c == EOF) {
-          filepath_buf[i] = '\0';
-          break;
-        }
-        filepath_buf[i] = c;
-      }
-      const action_code_t code = is_keyword(filepath_buf);
-      if (code != ACTION_CODE_NONE) {
-        delete_string(wd_input);
-        delete_string(ascii_buf);
-        return code;
-      }
-      input_stream = fopen(filepath_buf, "r");
-      if (input_stream == NULL) {
-        puts("The entered file or path was invalid.");
-        continue;
-      }
-    }
-    for (char c = getc(input_stream); c != EOF; c = getc(input_stream))
-      wd_input = append_char(wd_input, c);
-    ascii_buf = wd_str_to_ascii_str(wd_input->data, ascii_buf);
-    puts(ascii_buf->data);
-    erase_string_contents(ascii_buf);
-    erase_string_contents(wd_input);
-    fclose(input_stream);
-  }
-}
-
-/*
- * Prompts the user for the translator they want to use.
- * This function will return either CODE_ENGLISH_TO_WINGDINGS, or
- * CODE_WINGDINGS_TO_ENGLISH.
- *
- * If the user inputs something invalid, the function will prompt the user again
- * until they input something valid.
- */
-static translator_code_t prompt_for_translator(void) {
-  while (1) {
-    puts(
-        "\nChoose your translator:\n"
-        "1. Translate ASCII-to-Wingdings\n"
-        "2. Translate Wingdings-to-ASCII");
-    char buf[] = {getchar(), '\0'};
-    const translator_code_t user_selection = atoi(buf);
-    if (buf[0] != '\n') consume_line(stdin);
-    if (user_selection == CODE_ASCII_TO_WD ||
-        user_selection == CODE_WD_TO_ASCII)
-      return user_selection;
+    case UA_EXIT:
+      return;
+    case UA_SWITCH:
+      mode = prompt_translator();
   }
 }
 
 int main(void) {
-  action_code_t return_status = ACTION_CODE_NONE;
-  do {
-    const translator_code_t selection = prompt_for_translator();
-    switch (selection) {
-      case CODE_ASCII_TO_WD:
-        return_status = ascii_to_wd_translator();
-        break;
-      case CODE_WD_TO_ASCII:
-        return_status = wd_to_ascii_translator();
-        break;
-    }
-  } while (return_status == ACTION_CODE_SWITCH);
+  init();
+  translator_intermediary(prompt_translator());
   return 0;
 }

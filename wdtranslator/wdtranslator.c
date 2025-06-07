@@ -1,98 +1,265 @@
 #include "wdtranslator.h"
 
-#include <stdio.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "../C-MyBasics/array/array.h"
-#include "../C-MyBasics/randomgen/randomgen.h"
-#include "../C-MyBasics/strext/strext.h"
+#include "../myclib/include/myclib.h"
+#include "../myclib/str/str.h"
 
-string_t *ascii_char_to_wd_char(const char ascii_char) {
-  if (ascii_char > ASCII_TO_WD_OFFSET)
-    return new_string(wingdings[ascii_char - ASCII_TO_WD_OFFSET]);
-  return NULL;
+/* - DEFINITIONS - */
+
+/*
+ * Subtract an ASCII character by this value when indexing `wingdings` to get an
+ * index to its Wingdings counterpart. Likewise, add this value to a valid index
+ * of `wingdings` to get its ASCII equivalent.
+ *
+ * ### Example:
+ * Consider the ASCII character `'d'`, whose ASCII value is `100`. `'d'`
+ * corresponds to the '♎︎' Wingdings, which is stored at `wingdings[68]`.
+ * The corresponding Wingdings for `'d'` can be found within `wingdings` like
+ * so: `wingdings['d' - ASCII_TO_WD_OFFSET]`
+ */
+#define ASCII_TO_WD_OFFSET (char)(CHAR_MAX - NUM_WINGDINGS)
+
+#define NUM_WINGDINGS ARR_LEN(WINGDINGS)
+
+/* - CONSTANTS - */
+
+static wd_container WINGDINGS = {
+    // Symbols 1 (!, ", #, $, %, &, ', (, ), *, +, ',' , -, ., /) (15
+    // listed)
+    u8"✏︎",
+    u8"✂︎",
+    u8"✁︎",
+    u8"👓︎",
+    u8"🕭︎",
+    u8"🕮︎",
+    u8"🕯︎",
+    u8"🕿︎",
+    u8"✆︎",
+    u8"🖂︎",
+    u8"🖃︎",
+    u8"📪︎",
+    u8"📫︎",
+    u8"📬︎",
+    u8"📭︎",
+
+    // Numerical characters (0-9) (10 listed | 25 total Wingdings)
+    u8"📁︎",
+    u8"📂︎",
+    u8"📄︎",
+    u8"🗏︎",
+    u8"🗐︎",
+    u8"🗄︎",
+    u8"⌛︎",
+    u8"🖮︎",
+    u8"🖰︎",
+    u8"🖲︎",
+
+    // Symbols 2 (:, ;, <, =, >, ?, @) (7 listed | 32 total Wingdings)
+    // '@' has no Wingdings equivalent and is present for compatibility.
+    u8"🖳︎",
+    u8"🖴︎",
+    u8"🖫︎",
+    u8"🖬︎",
+    u8"✇︎",
+    u8"✍︎",
+    u8"@",
+
+    // Uppercase alphabetical characters (A-Z) (26 listed | 58 total
+    // Wingdings)
+    u8"✌︎",
+    u8"👌︎",
+    u8"👍︎",
+    u8"👎︎",
+    u8"☜︎",
+    u8"☞︎",
+    u8"☝︎",
+    u8"☟︎",
+    u8"✋︎",
+    u8"☺︎",
+    u8"😐︎",
+    u8"☹︎",
+    u8"💣︎",
+    u8"☠︎",
+    u8"⚐︎",
+    u8"🏱︎",
+    u8"✈︎",
+    u8"☼︎",
+    u8"💧︎",
+    u8"❄︎",
+    u8"🕆︎",
+    u8"✞︎",
+    u8"🕈︎",
+    u8"✠︎",
+    u8"✡︎",
+    u8"☪︎",
+
+    // Symbols 3 ([, \, ], ^, _, `) (6 listed | 64 total Wingdings)
+    u8"☯︎",
+    u8"ॐ︎",
+    u8"☸︎",
+    u8"♈︎",
+    u8"♉︎",
+    u8"♊︎",
+
+    // Lowercase alphabetical characters (a-z)
+    // (26 listed | 90 total Wingdings)
+    u8"♋︎",
+    u8"♌︎",
+    u8"♍︎",
+    u8"♎︎",
+    u8"♏︎",
+    u8"♐︎",
+    u8"♑︎",
+    u8"♒︎",
+    u8"♓︎",
+    u8"🙰",
+    u8"🙵",
+    u8"●︎",
+    u8"❍︎",
+    u8"■︎",
+    u8"□︎",
+    u8"◻︎",
+    u8"❑︎",
+    u8"❒︎",
+    u8"⬧︎",
+    u8"⧫︎",
+    u8"◆︎",
+    u8"❖︎",
+    u8"⬥︎",
+    u8"⌧︎",
+    u8"⍓︎",
+    u8"⌘︎",
+
+    // Symbols 4 ({, |, }, ~) (4 listed | 94 total Wingdings)
+    u8"❀︎",
+    u8"✿︎",
+    u8"❝︎",
+    u8"❞︎",
+};
+
+static wd_container SORTED_WINGDINGS = {
+    u8"@",  u8"ॐ︎",  u8"⌘︎",  u8"⌛︎", u8"⌧︎",  u8"⍓︎",  u8"■︎",  u8"□︎",  u8"◆︎",
+    u8"●︎",  u8"◻︎",  u8"☜︎",  u8"☝︎",  u8"☞︎",  u8"☟︎",  u8"☠︎",  u8"☪︎",  u8"☯︎",
+    u8"☸︎",  u8"☸︎",  u8"☹︎",  u8"☺︎",  u8"☼︎",  u8"♈︎", u8"♉︎", u8"♋︎", u8"♌︎",
+    u8"♍︎", u8"♎︎", u8"♏︎", u8"♐︎", u8"♑︎", u8"♒︎", u8"♓︎", u8"⚐︎",  u8"✁︎",
+    u8"✂︎",  u8"✆︎",  u8"✇︎",  u8"✈︎",  u8"✋︎", u8"✌︎",  u8"✍︎",  u8"✏︎",  u8"✞︎",
+    u8"✠︎",  u8"✡︎",  u8"✿︎",  u8"❀︎",  u8"❄︎",  u8"❍︎",  u8"❑︎",  u8"❒︎",  u8"❖︎",
+    u8"❝︎",  u8"❞︎",  u8"⧫︎",  u8"⬥︎",  u8"⬧︎",  u8"🏱︎", u8"👌︎", u8"👍︎", u8"👎︎",
+    u8"👓︎", u8"💣︎", u8"💧︎", u8"📁︎", u8"📂︎", u8"📄︎", u8"📪︎", u8"📫︎", u8"📬︎",
+    u8"📭︎", u8"🕆︎", u8"🕈︎", u8"🕭︎", u8"🕮︎", u8"🕯︎", u8"🕿︎", u8"🖂︎", u8"🖃︎",
+    u8"🖫︎", u8"🖬︎", u8"🖮︎", u8"🖰︎", u8"🖲︎", u8"🖳︎", u8"🖴︎", u8"🗄︎", u8"🗏︎",
+    u8"🗐︎", u8"😐︎", u8"🙰",  u8"🙵",
+};
+
+/*
+ * Since `sorted_wingdings` does not have the same indexing as `wingdings`, the
+ * indexing trick with `ASCII_WINGDINGS_OFFSET` will not work.
+ *
+ * In light of this, below is a character array where each element corresponds
+ * to `sorted_wingdings`.
+ *
+ * (I know ']' is repeated. It's probably a mistake I made early on when
+ * compiling all the Wingdings here.)
+ */
+static const char SORTED_WD_TO_ASCII[] = {
+    '@', '\\', 'z', '6', 'x', 'y', 'n', 'o',  'u', 'l', 'p', 'E', 'G', 'F',
+    'H', 'N',  'Z', '[', ']', ']', 'L', 'J',  'R', '^', '_', 'a', 'b', 'c',
+    'd', 'e',  'f', 'g', 'h', 'i', 'O', '#',  '"', ')', '>', 'Q', 'I', 'A',
+    '?', '!',  'V', 'X', 'Y', '|', '{', 'T',  'm', 'q', 'r', 'v', '}', '~',
+    't', 'w',  's', 'P', 'B', 'C', 'D', '$',  'M', 'S', '0', '1', '2', ',',
+    '-', '.',  '/', 'U', 'W', '%', '&', '\'', '(', '*', '+', '<', '=', '7',
+    '8', '9',  ':', ';', '5', '3', '4', 'K',  'j', 'k'};
+
+/* - UTILITY - */
+
+static inline size_t wd_char_index(const_wd_char *const chr) {
+  return (size_t)(chr - WINGDINGS);
 }
 
-string_t *ascii_str_to_wd_str(const char *ascii_str, string_t *wd_output) {
-  for (size_t i = 0; ascii_str[i] != '\0'; i++) {
-    const char current_char = ascii_str[i];
-    if (current_char > ASCII_TO_WD_OFFSET) {
-      const char *const wd_char = wingdings[current_char - ASCII_TO_WD_OFFSET];
-      wd_output = append_raw_str(wd_output, wd_char, strlen(wd_char));
-    } else
-      wd_output = append_char(wd_output, current_char);
+/* - IMPLEMENTATION - */
+
+const_wd_char ascii_char_to_wd_char(const char ascii) {
+  return (ascii > ASCII_TO_WD_OFFSET) ? WINGDINGS[ascii - ASCII_TO_WD_OFFSET]
+                                      : NULL;
+}
+
+string ascii_str_to_wd_str(const char *ascii_str) {
+  string wd_output = string_init(STR_DEFAULT_CAPACITY);
+  while (*ascii_str != '\0') {
+    const char CHR = *ascii_str;
+    const char *const wd_char = ascii_char_to_wd_char(CHR);
+    if (wd_char != NULL)
+      string_append_raw_str(wd_output, wd_char);
+    else
+      string_append_char(wd_output, CHR);
+    ascii_str++;
   }
   return wd_output;
 }
 
-int search_sorted_wingdings(const char *const wd_char) {
-  size_t min = 0, max = NUM_WINGDINGS;
+const_wd_char *search_sorted_wd(const_wd_char wd_char) {
+  size_t min = 0;
+  size_t max = ARR_LEN(WINGDINGS);
   while (min < max) {
-    const size_t mid = (min + max) / 2;
-    const int cmp_result = strcmp(wd_char, sorted_wingdings[mid]);
-    if (cmp_result < 0)
-      max = mid;
-    else if (cmp_result > 0)
-      min = mid + 1;
+    const size_t MID = (min + max) / 2;
+    const int CMP_RESULT = strcmp(wd_char, SORTED_WINGDINGS[MID]);
+    if (CMP_RESULT < 0)
+      max = MID;
+    else if (CMP_RESULT > 0)
+      min = MID + 1;
     else
-      return mid;
+      return SORTED_WINGDINGS + MID;
   }
-  return -1;
+  return NULL;
 }
 
-int search_for_wd_candidate(const char *const wd_cand) {
-  switch (*wd_cand) {
-    /*
-     * These cases comprise all of the possible first bytes within a Wingdings.
-     * See the files within `wdanalysis/pre-generated` for details.
-     */
-    case -16:
-    case -30:
-    case -32: {
-      /*
-       * For most Wingdings, the final byte (shown as `int`) in their
-       * representation will be `-114`. However, `-80` and `-75` can be
-       * the final byte for two edge case Wingdings (🙰, 🙵). The aforementioned
-       * Wingdings also have an abnormal length of `4` compared to the usual
-       * `6` or `7`.
-       */
+const_wd_char *search_for_wd(const char *const wd_cand) {
+  switch ((WD_BEGIN_BYTE)*wd_cand) {
+    case WD_BEGIN_1:
+    case WD_BEGIN_2:
+    case WD_BEGIN_3: {
+      char wingdings_container[WD_SIZE_LARGE];
       size_t wd_length;
-      if (wd_cand[5] == WD_TERM)
-        wd_length = 6;
-      else if (wd_cand[6] == WD_TERM)
-        wd_length = 7;
-      else if (wd_cand[3] == WD_TERM_EXC_1 || wd_cand[3] == WD_TERM_EXC_2)
-        wd_length = 4;
+      if (IS_SMALL_WD(wd_cand))
+        wd_length = WD_SIZE_SMALL;
+      else if (IS_MEDIUM_WD(wd_cand))
+        wd_length = WD_SIZE_MEDIUM;
+      else if (IS_LARGE_WD(wd_cand))
+        wd_length = WD_SIZE_LARGE;
       else
         break;
-      char wingdings_container[MAX_WINGDINGS_SIZE];
-      strncpy(wingdings_container, wd_cand, wd_length);
+      strncpy(wingdings_container, wd_cand, wd_length - 1);
       wingdings_container[wd_length] = '\0';
-      return search_sorted_wingdings(wingdings_container);
+      return search_sorted_wd(wingdings_container);
     }
   }
-  return -1;
+  return NULL;
 }
 
-char wd_char_to_ascii_char(const char *const wd_char) {
-  const int wd_char_index = search_sorted_wingdings(wd_char);
-  if (wd_char_index == -1) return '\0';
-  return sorted_wd_to_ascii[wd_char_index];
+char wd_char_to_ascii_char(const_wd_char wd_char) {
+  const_wd_char *const wd_char_pos = search_sorted_wd(wd_char);
+  return (char)(wd_char_pos != NULL
+                    ? SORTED_WD_TO_ASCII[wd_char_pos - SORTED_WINGDINGS]
+                    : '\0');
 }
 
-string_t *wd_str_to_ascii_str(const char *wd_str, string_t *ascii_output) {
+string wd_str_to_ascii_str(const char *wd_str) {
+  string ascii_str = string_init(STR_DEFAULT_CAPACITY);
+  size_t prev_index = 0;
   while (*wd_str != '\0') {
-    const int wd_index = search_for_wd_candidate(wd_str);
-    if (wd_index == -1) {
-      ascii_output = append_char(ascii_output, *wd_str);
+    const_wd_char *const wd_char = search_for_wd(wd_str);
+    if (wd_char != NULL) {
+      const size_t CUR_INDEX = wd_char_index(wd_char);
+      string_append_char(ascii_str, SORTED_WD_TO_ASCII[CUR_INDEX]);
+      wd_str += CUR_INDEX - prev_index;
+      prev_index = CUR_INDEX;
+    } else {
+      string_append_char(ascii_str, *wd_str);
       wd_str++;
-      continue;
     }
-    const char *const wd_char = sorted_wingdings[wd_index];
-    const char ascii_char = sorted_wd_to_ascii[wd_index];
-    ascii_output = append_char(ascii_output, ascii_char);
-    wd_str += strlen(wd_char);
   }
-  return ascii_output;
+  return ascii_str;
 }
