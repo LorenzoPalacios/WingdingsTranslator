@@ -1,7 +1,10 @@
 # Files
+*.o
 *.exe
 .vscode
 *.txt
+.clangd
+*.a
 
 # Directories
 build
