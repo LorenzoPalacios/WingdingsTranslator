@@ -1,9 +1,11 @@
 # Files
+.vscode
+.clangd
+
+# Wildcard
 *.o
 *.exe
-.vscode
 *.txt
-.clangd
 *.a
 
 # Directories

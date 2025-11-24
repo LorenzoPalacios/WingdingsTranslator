@@ -7,179 +7,16 @@
 #include "../myclib/include/myclib.h"
 #include "../myclib/str/str.h"
 
-/* - DEFINITIONS - */
-
-/*
- * Subtract an ASCII character by this value when indexing `wingdings` to get an
- * index to its Wingdings counterpart. Likewise, add this value to a valid index
- * of `wingdings` to get its ASCII equivalent.
- *
- * ### Example:
- * Consider the ASCII character `'d'`, whose ASCII value is `100`. `'d'`
- * corresponds to the '♎︎' Wingdings, which is stored at `wingdings[68]`.
- * The corresponding Wingdings for `'d'` can be found within `wingdings` like
- * so: `wingdings['d' - ASCII_TO_WD_OFFSET]`
- */
-#define ASCII_TO_WD_OFFSET (char)(CHAR_MAX - NUM_WINGDINGS)
-
-#define NUM_WINGDINGS ARR_LEN(WINGDINGS)
-
-/* - CONSTANTS - */
-
-static wd_container WINGDINGS = {
-    // Symbols 1 (!, ", #, $, %, &, ', (, ), *, +, ',' , -, ., /)
-    // (15 listed)
-    "✏︎",
-    "✂︎",
-    "✁︎",
-    "👓︎",
-    "🕭︎",
-    "🕮︎",
-    "🕯︎",
-    "🕿︎",
-    "✆︎",
-    "🖂︎",
-    "🖃︎",
-    "📪︎",
-    "📫︎",
-    "📬︎",
-    "📭︎",
-
-    // Numerical characters (0-9) (10 listed | 25 total Wingdings)
-    "📁︎",
-    "📂︎",
-    "📄︎",
-    "🗏︎",
-    "🗐︎",
-    "🗄︎",
-    "⌛︎",
-    "🖮︎",
-    "🖰︎",
-    "🖲︎",
-
-    // Symbols 2 (:, ;, <, =, >, ?, @) (7 listed | 32 total Wingdings)
-    // '@' has no Wingdings equivalent and is present for compatibility.
-    "🖳︎",
-    "🖴︎",
-    "🖫︎",
-    "🖬︎",
-    "✇︎",
-    "✍︎",
-    "@",
-
-    // Uppercase alphabetical characters (A-Z) (26 listed | 58 total
-    // Wingdings)
-    "✌︎",
-    "👌︎",
-    "👍︎",
-    "👎︎",
-    "☜︎",
-    "☞︎",
-    "☝︎",
-    "☟︎",
-    "✋︎",
-    "☺︎",
-    "😐︎",
-    "☹︎",
-    "💣︎",
-    "☠︎",
-    "⚐︎",
-    "🏱︎",
-    "✈︎",
-    "☼︎",
-    "💧︎",
-    "❄︎",
-    "🕆︎",
-    "✞︎",
-    "🕈︎",
-    "✠︎",
-    "✡︎",
-    "☪︎",
-
-    // Symbols 3 ([, \, ], ^, _, `) (6 listed | 64 total Wingdings)
-    "☯︎",
-    "ॐ︎",
-    "☸︎",
-    "♈︎",
-    "♉︎",
-    "♊︎",
-
-    // Lowercase alphabetical characters (a-z)
-    // (26 listed | 90 total Wingdings)
-    "♋︎",
-    "♌︎",
-    "♍︎",
-    "♎︎",
-    "♏︎",
-    "♐︎",
-    "♑︎",
-    "♒︎",
-    "♓︎",
-    "🙰",
-    "🙵",
-    "●︎",
-    "❍︎",
-    "■︎",
-    "□︎",
-    "◻︎",
-    "❑︎",
-    "❒︎",
-    "⬧︎",
-    "⧫︎",
-    "◆︎",
-    "❖︎",
-    "⬥︎",
-    "⌧︎",
-    "⍓︎",
-    "⌘︎",
-
-    // Symbols 4 ({, |, }, ~) (4 listed | 94 total Wingdings)
-    "❀︎",
-    "✿︎",
-    "❝︎",
-    "❞︎",
-};
-
-static wd_container SORTED_WINGDINGS = {
-    "@",  "ॐ︎",  "⌘︎",  "⌛︎", "⌧︎",  "⍓︎",  "■︎",  "□︎",  "◆︎",  "●︎",  "◻︎",  "☜︎",
-    "☝︎",  "☞︎",  "☟︎",  "☠︎",  "☪︎",  "☯︎",  "☸︎",  "☸︎",  "☹︎",  "☺︎",  "☼︎",  "♈︎",
-    "♉︎", "♋︎", "♌︎", "♍︎", "♎︎", "♏︎", "♐︎", "♑︎", "♒︎", "♓︎", "⚐︎",  "✁︎",
-    "✂︎",  "✆︎",  "✇︎",  "✈︎",  "✋︎", "✌︎",  "✍︎",  "✏︎",  "✞︎",  "✠︎",  "✡︎",  "✿︎",
-    "❀︎",  "❄︎",  "❍︎",  "❑︎",  "❒︎",  "❖︎",  "❝︎",  "❞︎",  "⧫︎",  "⬥︎",  "⬧︎",  "🏱︎",
-    "👌︎", "👍︎", "👎︎", "👓︎", "💣︎", "💧︎", "📁︎", "📂︎", "📄︎", "📪︎", "📫︎", "📬︎",
-    "📭︎", "🕆︎", "🕈︎", "🕭︎", "🕮︎", "🕯︎", "🕿︎", "🖂︎", "🖃︎", "🖫︎", "🖬︎", "🖮︎",
-    "🖰︎", "🖲︎", "🖳︎", "🖴︎", "🗄︎", "🗏︎", "🗐︎", "😐︎", "🙰",  "🙵",
-};
-
-/*
- * Since `sorted_wingdings` does not have the same indexing as `wingdings`, the
- * indexing trick with `ASCII_WINGDINGS_OFFSET` will not work.
- *
- * In light of this, below is a character array where each element corresponds
- * to `sorted_wingdings`.
- *
- * (I know ']' is repeated. It's probably a mistake I made early on when
- * compiling all the Wingdings here.)
- */
-static const char SORTED_WD_TO_ASCII[] = {
-    '@', '\\', 'z', '6', 'x', 'y', 'n', 'o',  'u', 'l', 'p', 'E', 'G', 'F',
-    'H', 'N',  'Z', '[', ']', ']', 'L', 'J',  'R', '^', '_', 'a', 'b', 'c',
-    'd', 'e',  'f', 'g', 'h', 'i', 'O', '#',  '"', ')', '>', 'Q', 'I', 'A',
-    '?', '!',  'V', 'X', 'Y', '|', '{', 'T',  'm', 'q', 'r', 'v', '}', '~',
-    't', 'w',  's', 'P', 'B', 'C', 'D', '$',  'M', 'S', '0', '1', '2', ',',
-    '-', '.',  '/', 'U', 'W', '%', '&', '\'', '(', '*', '+', '<', '=', '7',
-    '8', '9',  ':', ';', '5', '3', '4', 'K',  'j', 'k'};
-
 /* - UTILITY - */
 
 static inline size_t wd_char_index(const_wd_char *const chr) {
-  return (size_t)(chr - WINGDINGS);
+  return (size_t)(chr - wingdings);
 }
 
 /* - IMPLEMENTATION - */
 
 const_wd_char ascii_char_to_wd_char(const char ascii) {
-  return (ascii > ASCII_TO_WD_OFFSET) ? WINGDINGS[ascii - ASCII_TO_WD_OFFSET]
+  return (ascii > ASCII_TO_WD_OFFSET) ? wingdings[ascii - ASCII_TO_WD_OFFSET]
                                       : NULL;
 }
 
@@ -199,16 +36,16 @@ string ascii_str_to_wd_str(const char *ascii_str) {
 
 const_wd_char *search_sorted_wd(const_wd_char wd_char) {
   size_t min = 0;
-  size_t max = ARR_LEN(WINGDINGS);
+  size_t max = ARR_LEN(wingdings);
   while (min < max) {
     const size_t MID = (min + max) / 2;
-    const int CMP_RESULT = strcmp(wd_char, SORTED_WINGDINGS[MID]);
+    const int CMP_RESULT = strcmp(wd_char, sorted_wingdings[MID]);
     if (CMP_RESULT < 0)
       max = MID;
     else if (CMP_RESULT > 0)
       min = MID + 1;
     else
-      return SORTED_WINGDINGS + MID;
+      return sorted_wingdings + MID;
   }
   return NULL;
 }
@@ -239,7 +76,7 @@ const_wd_char *search_for_wd(const char *const wd_cand) {
 char wd_char_to_ascii_char(const_wd_char wd_char) {
   const_wd_char *const wd_char_pos = search_sorted_wd(wd_char);
   return (char)(wd_char_pos != NULL
-                    ? SORTED_WD_TO_ASCII[wd_char_pos - SORTED_WINGDINGS]
+                    ? SORTED_WD_TO_ASCII[wd_char_pos - sorted_wingdings]
                     : '\0');
 }
 
@@ -250,7 +87,7 @@ string wd_str_to_ascii_str(const char *wd_str) {
     const_wd_char *const wd_char = search_for_wd(wd_str);
     if (wd_char != NULL) {
       const size_t CUR_INDEX = wd_char_index(wd_char);
-      string_append_char(ascii_str, SORTED_WD_TO_ASCII[CUR_INDEX]);
+      string_append_char(ascii_str, sorted_wd_to_ascii[CUR_INDEX]);
       wd_str += CUR_INDEX - prev_index;
       prev_index = CUR_INDEX;
     } else {

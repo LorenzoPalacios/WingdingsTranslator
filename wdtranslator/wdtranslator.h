@@ -4,11 +4,12 @@
 #include <limits.h>
 #include <stddef.h>
 
+#include "../myclib/include/myclib.h"
 #include "../myclib/str/str.h"
 
 /* - DEFINITIONS - */
 
-#define IS_SMALL_WD(wd_chr) \
+#define IS_SMALL_WD(wd_chr)                                                    \
   ((wd_chr)[3] == WD_TERM_2 || (wd_chr)[3] == WD_TERM_3)
 
 #define IS_MEDIUM_WD(wd_chr) ((wd_chr)[5] == WD_TERM_1)
@@ -37,10 +38,172 @@ typedef enum : size_t {
 
 /* - TYPES - */
 
-typedef const char *const wd_container[];
+typedef char *wd_container[];
+typedef const char *const const_wd_container[];
 
 typedef char *wd_char;
 typedef const char *const const_wd_char;
+
+/* - CONSTANTS - */
+
+/*
+ * Subtract an ASCII character by this value when indexing `wingdings` to get an
+ * index to its Wingdings counterpart. Likewise, add this value to a valid index
+ * of `wingdings` to get its ASCII equivalent.
+ *
+ * ### Example:
+ * Consider the ASCII character `'d'`, whose ASCII value is `100`. `'d'`
+ * corresponds to the '♎︎' Wingdings, which is stored at `wingdings[68]`.
+ * The corresponding Wingdings for `'d'` can be found within `wingdings` like
+ * so: `wingdings['d' - ASCII_TO_WD_OFFSET]`
+ */
+#define ASCII_TO_WD_OFFSET (char)(CHAR_MAX - NUM_WINGDINGS)
+
+#define NUM_WINGDINGS ARR_LEN(WINGDINGS)
+
+const_wd_container WINGDINGS = {
+    // Symbols 1 (!, ", #, $, %, &, ', (, ), *, +, ',' , -, ., /)
+    // (15 listed)
+    "✏︎",
+    "✂︎",
+    "✁︎",
+    "👓︎",
+    "🕭︎",
+    "🕮︎",
+    "🕯︎",
+    "🕿︎",
+    "✆︎",
+    "🖂︎",
+    "🖃︎",
+    "📪︎",
+    "📫︎",
+    "📬︎",
+    "📭︎",
+
+    // Numerical characters (0-9) (10 listed | 25 total Wingdings)
+    "📁︎",
+    "📂︎",
+    "📄︎",
+    "🗏︎",
+    "🗐︎",
+    "🗄︎",
+    "⌛︎",
+    "🖮︎",
+    "🖰︎",
+    "🖲︎",
+
+    // Symbols 2 (:, ;, <, =, >, ?, @) (7 listed | 32 total Wingdings)
+    // '@' has no Wingdings equivalent and is present for compatibility.
+    "🖳︎",
+    "🖴︎",
+    "🖫︎",
+    "🖬︎",
+    "✇︎",
+    "✍︎",
+    "@",
+
+    // Uppercase alphabetical characters (A-Z) (26 listed | 58 total
+    // Wingdings)
+    "✌︎",
+    "👌︎",
+    "👍︎",
+    "👎︎",
+    "☜︎",
+    "☞︎",
+    "☝︎",
+    "☟︎",
+    "✋︎",
+    "☺︎",
+    "😐︎",
+    "☹︎",
+    "💣︎",
+    "☠︎",
+    "⚐︎",
+    "🏱︎",
+    "✈︎",
+    "☼︎",
+    "💧︎",
+    "❄︎",
+    "🕆︎",
+    "✞︎",
+    "🕈︎",
+    "✠︎",
+    "✡︎",
+    "☪︎",
+
+    // Symbols 3 ([, \, ], ^, _, `) (6 listed | 64 total Wingdings)
+    "☯︎",
+    "ॐ︎",
+    "☸︎",
+    "♈︎",
+    "♉︎",
+    "♊︎",
+
+    // Lowercase alphabetical characters (a-z)
+    // (26 listed | 90 total Wingdings)
+    "♋︎",
+    "♌︎",
+    "♍︎",
+    "♎︎",
+    "♏︎",
+    "♐︎",
+    "♑︎",
+    "♒︎",
+    "♓︎",
+    "🙰",
+    "🙵",
+    "●︎",
+    "❍︎",
+    "■︎",
+    "□︎",
+    "◻︎",
+    "❑︎",
+    "❒︎",
+    "⬧︎",
+    "⧫︎",
+    "◆︎",
+    "❖︎",
+    "⬥︎",
+    "⌧︎",
+    "⍓︎",
+    "⌘︎",
+
+    // Symbols 4 ({, |, }, ~) (4 listed | 94 total Wingdings)
+    "❀︎",
+    "✿︎",
+    "❝︎",
+    "❞︎",
+};
+
+const_wd_container SORTED_WINGDINGS = {
+    "@",  "ॐ︎",  "⌘︎",  "⌛︎", "⌧︎",  "⍓︎",  "■︎",  "□︎",  "◆︎",  "●︎",  "◻︎",  "☜︎",
+    "☝︎",  "☞︎",  "☟︎",  "☠︎",  "☪︎",  "☯︎",  "☸︎",  "☸︎",  "☹︎",  "☺︎",  "☼︎",  "♈︎",
+    "♉︎", "♋︎", "♌︎", "♍︎", "♎︎", "♏︎", "♐︎", "♑︎", "♒︎", "♓︎", "⚐︎",  "✁︎",
+    "✂︎",  "✆︎",  "✇︎",  "✈︎",  "✋︎", "✌︎",  "✍︎",  "✏︎",  "✞︎",  "✠︎",  "✡︎",  "✿︎",
+    "❀︎",  "❄︎",  "❍︎",  "❑︎",  "❒︎",  "❖︎",  "❝︎",  "❞︎",  "⧫︎",  "⬥︎",  "⬧︎",  "🏱︎",
+    "👌︎", "👍︎", "👎︎", "👓︎", "💣︎", "💧︎", "📁︎", "📂︎", "📄︎", "📪︎", "📫︎", "📬︎",
+    "📭︎", "🕆︎", "🕈︎", "🕭︎", "🕮︎", "🕯︎", "🕿︎", "🖂︎", "🖃︎", "🖫︎", "🖬︎", "🖮︎",
+    "🖰︎", "🖲︎", "🖳︎", "🖴︎", "🗄︎", "🗏︎", "🗐︎", "😐︎", "🙰",  "🙵",
+};
+
+/*
+ * Since `sorted_wingdings` does not have the same indexing as `wingdings`, the
+ * indexing trick with `ASCII_WINGDINGS_OFFSET` will not work.
+ *
+ * In light of this, below is a character array where each element corresponds
+ * to `sorted_wingdings`.
+ *
+ * (I know ']' is repeated. It's probably a mistake I made early on when
+ * compiling all the Wingdings here.)
+ */
+const char SORTED_WD_TO_ASCII[] = {
+    '@', '\\', 'z', '6', 'x', 'y', 'n', 'o',  'u', 'l', 'p', 'E', 'G', 'F',
+    'H', 'N',  'Z', '[', ']', ']', 'L', 'J',  'R', '^', '_', 'a', 'b', 'c',
+    'd', 'e',  'f', 'g', 'h', 'i', 'O', '#',  '"', ')', '>', 'Q', 'I', 'A',
+    '?', '!',  'V', 'X', 'Y', '|', '{', 'T',  'm', 'q', 'r', 'v', '}', '~',
+    't', 'w',  's', 'P', 'B', 'C', 'D', '$',  'M', 'S', '0', '1', '2', ',',
+    '-', '.',  '/', 'U', 'W', '%', '&', '\'', '(', '*', '+', '<', '=', '7',
+    '8', '9',  ':', ';', '5', '3', '4', 'K',  'j', 'k'};
 
 /* - FUNCTIONS - */
 
