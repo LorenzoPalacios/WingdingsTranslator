@@ -10,36 +10,35 @@
 /* - DEFINITIONS - */
 
 #define IS_SMALL_WD(wd_chr)                                                    \
-  ((wd_chr)[3] == WD_TERM_2 || (wd_chr)[3] == WD_TERM_3)
+  ((byte)(wd_chr)[3] == WD_END_2 || (byte)(wd_chr)[3] == WD_END_3)
 
-#define IS_MEDIUM_WD(wd_chr) ((wd_chr)[5] == WD_TERM_1)
+#define IS_MEDIUM_WD(wd_chr) ((byte)(wd_chr)[5] == WD_END_1)
 
-#define IS_LARGE_WD(wd_chr) ((wd_chr)[6] == WD_TERM_2)
+#define IS_LARGE_WD(wd_chr) ((byte)(wd_chr)[6] == WD_END_2)
 
 /* - ENUMS - */
 
-typedef enum : char {
-  WD_BEGIN_1 = -16,
-  WD_BEGIN_2 = -30,
-  WD_BEGIN_3 = -32,
+typedef enum : byte {
+  WD_BEGIN_1 = 226,
+  WD_BEGIN_2 = 240,
 } WD_BEGIN_BYTE;
 
-typedef enum : char {
-  WD_TERM_1 = -114,
-  WD_TERM_2 = -80,
-  WD_TERM_3 = -75,
+typedef enum : byte {
+  WD_END_1 = 142,
+  WD_END_2 = 176,
+  WD_END_3 = 181,
 } WD_END_BYTE;
 
 typedef enum : size_t {
-  WD_SIZE_SMALL = sizeof("🙰"),
-  WD_SIZE_MEDIUM = sizeof("✏︎"),
-  WD_SIZE_LARGE = sizeof("👓︎"),
+  WDS_SMALL = sizeof("🙰"),
+  WDS_MEDIUM = sizeof("✏︎"),
+  WDS_LARGE = sizeof("👓︎"),
 } WD_SIZE;
 
 /* - TYPES - */
 
-typedef char *wd_container[];
-typedef const char *const const_wd_container[];
+typedef char *wd_array[];
+typedef const char *const const_wd_array[];
 
 typedef char *wd_char;
 typedef const char *const const_wd_char;
@@ -61,7 +60,7 @@ typedef const char *const const_wd_char;
 
 #define NUM_WINGDINGS ARR_LEN(WINGDINGS)
 
-const_wd_container WINGDINGS = {
+static const_wd_array WINGDINGS = {
     // Symbols 1 (!, ", #, $, %, &, ', (, ), *, +, ',' , -, ., /)
     // (15 listed)
     "✏︎",
@@ -175,7 +174,7 @@ const_wd_container WINGDINGS = {
     "❞︎",
 };
 
-const_wd_container SORTED_WINGDINGS = {
+static const_wd_array SORTED_WINGDINGS = {
     "@",  "ॐ︎",  "⌘︎",  "⌛︎", "⌧︎",  "⍓︎",  "■︎",  "□︎",  "◆︎",  "●︎",  "◻︎",  "☜︎",
     "☝︎",  "☞︎",  "☟︎",  "☠︎",  "☪︎",  "☯︎",  "☸︎",  "☸︎",  "☹︎",  "☺︎",  "☼︎",  "♈︎",
     "♉︎", "♋︎", "♌︎", "♍︎", "♎︎", "♏︎", "♐︎", "♑︎", "♒︎", "♓︎", "⚐︎",  "✁︎",
@@ -196,7 +195,7 @@ const_wd_container SORTED_WINGDINGS = {
  * (I know ']' is repeated. It's probably a mistake I made early on when
  * compiling all the Wingdings here.)
  */
-const char SORTED_WD_TO_ASCII[] = {
+static const char SORTED_WD_TO_ASCII[] = {
     '@', '\\', 'z', '6', 'x', 'y', 'n', 'o',  'u', 'l', 'p', 'E', 'G', 'F',
     'H', 'N',  'Z', '[', ']', ']', 'L', 'J',  'R', '^', '_', 'a', 'b', 'c',
     'd', 'e',  'f', 'g', 'h', 'i', 'O', '#',  '"', ')', '>', 'Q', 'I', 'A',

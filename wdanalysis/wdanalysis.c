@@ -29,7 +29,7 @@ static inline void print_str_byte_sum(FILE *const out, const char *str) {
 
 /* - FUNCTIONS - */
 
-static const wd_chr_analysis_f FUNCS[] = {print_str_bytes, print_str_byte_sum};
+static const wd_chr_analysis_f DETAIL_FUNCS[] = {print_str_bytes, print_str_byte_sum};
 
 void print_wd_details(FILE *const out, const WD_ANALYSIS_FLAGS flags) {
   const_str_array requested_wd =
@@ -40,7 +40,7 @@ void print_wd_details(FILE *const out, const WD_ANALYSIS_FLAGS flags) {
     for (size_t i = 1; (1 << i) <= flags; i++) {
       if ((1 << i) & flags) {
         fputs(", ", out);
-        FUNCS[i - 1](out, wd_chr);
+        DETAIL_FUNCS[i - 1](out, wd_chr);
       }
     }
     fputc('\n', out);
@@ -49,6 +49,6 @@ void print_wd_details(FILE *const out, const WD_ANALYSIS_FLAGS flags) {
 
 int main(void) {
   FILE *out = fopen("out.txt", "w");
-  print_wd_details(out, WDAF_BYTES | WDAF_BYTE_SUM);
+  print_wd_details(out, WDAF_BYTES);
   return 0;
 }
