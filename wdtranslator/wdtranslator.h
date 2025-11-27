@@ -9,30 +9,53 @@
 
 /* - DEFINITIONS - */
 
+#define IS_WD_BEGIN_BYTE(chr)                                                  \
+  ((WD_BEGIN_BYTE)(chr) == WD_BEGIN_1 || (WD_BEGIN_BYTE)(chr) == WD_BEGIN_2 || \
+   (WD_BEGIN_BYTE)(chr) == WD_BEGIN_3)
+
 #define IS_SMALL_WD(wd_chr)                                                    \
-  ((byte)(wd_chr)[3] == WD_END_2 || (byte)(wd_chr)[3] == WD_END_3)
+  ((byte)(wd_chr)[WDS_SMALL - 2] == WDSCB_1 &&                                 \
+   (byte)(wd_chr)[WDS_SMALL - 3] == WDSCB_2)
 
-#define IS_MEDIUM_WD(wd_chr) ((byte)(wd_chr)[5] == WD_END_1)
+#define IS_MEDIUM_WD(wd_chr)                                                   \
+  ((byte)(wd_chr)[WDS_MEDIUM - 2] == WDCB_1 &&                                 \
+   (byte)(wd_chr)[WDS_MEDIUM - 3] == WDCB_2)
 
-#define IS_LARGE_WD(wd_chr) ((byte)(wd_chr)[6] == WD_END_2)
+#define IS_LARGE_WD(wd_chr)                                                    \
+  ((byte)(wd_chr)[WDS_LARGE - 2] == WDCB_1 &&                                  \
+   (byte)(wd_chr)[WDS_LARGE - 3] == WDCB_2)
+
+#define WD_LEN_TYPE(wd_chr)                                                    \
+  (IS_SMALL_WD(wd_chr)    ? WDS_SMALL                                          \
+   : IS_MEDIUM_WD(wd_chr) ? WDS_MEDIUM                                         \
+   : IS_LARGE_WD(wd_chr)  ? WDS_LARGE                                          \
+                          : 0)
 
 /* - ENUMS - */
 
 typedef enum : byte {
   WD_BEGIN_1 = 226,
-  WD_BEGIN_2 = 240,
+  WD_BEGIN_2 = 240, // 🙰 and 🙵
+  WD_BEGIN_3 = 224, // ॐ︎
 } WD_BEGIN_BYTE;
 
+// These bytes are selected for their lack of collisions with other Wingdings
+// characters (i.e., they do not appear multiple times or in different positions
+// for any given Wingdings).
 typedef enum : byte {
-  WD_END_1 = 142,
-  WD_END_2 = 176,
-  WD_END_3 = 181,
-} WD_END_BYTE;
+  WDCB_1 = 184, // A common second-to-last byte.
+  WDCB_2 = 239, // A common third-to-last byte.
+} WD_COMMON_BYTE;
+
+typedef enum : byte {
+  WDSCB_1 = 153, // For 🙰 and 🙵, this is the common second-to-last byte.
+  WDSCB_2 = 159, // For 🙰 and 🙵, this is the common third-to-last byte.
+} WD_SPECIAL_COMMON_BYTE;
 
 typedef enum : size_t {
-  WDS_SMALL = sizeof("🙰"),
-  WDS_MEDIUM = sizeof("✏︎"),
-  WDS_LARGE = sizeof("👓︎"),
+  WDS_SMALL = sizeof("🙰") - 1,
+  WDS_MEDIUM = sizeof("✏︎") - 1,
+  WDS_LARGE = sizeof("👓︎") - 1,
 } WD_SIZE;
 
 /* - TYPES - */
@@ -63,115 +86,115 @@ typedef const char *const const_wd_char;
 static const_wd_array WINGDINGS = {
     // Symbols 1 (!, ", #, $, %, &, ', (, ), *, +, ',' , -, ., /)
     // (15 listed)
-    "✏︎",
-    "✂︎",
-    "✁︎",
-    "👓︎",
-    "🕭︎",
-    "🕮︎",
-    "🕯︎",
-    "🕿︎",
-    "✆︎",
-    "🖂︎",
-    "🖃︎",
-    "📪︎",
-    "📫︎",
-    "📬︎",
-    "📭︎",
+    "✏︎",  // !
+    "✂︎",  // "
+    "✁︎",  // #
+    "👓︎", // $
+    "🕭︎", // %
+    "🕮︎", // &
+    "🕯︎", // '
+    "🕿︎", // (
+    "✆︎",  // )
+    "🖂︎", // *
+    "🖃︎", // +
+    "📪︎", // ,
+    "📫︎", // -
+    "📬︎", // .
+    "📭︎", // /
 
     // Numerical characters (0-9) (10 listed | 25 total Wingdings)
-    "📁︎",
-    "📂︎",
-    "📄︎",
-    "🗏︎",
-    "🗐︎",
-    "🗄︎",
-    "⌛︎",
-    "🖮︎",
-    "🖰︎",
-    "🖲︎",
+    "📁︎", // 0
+    "📂︎", // 1
+    "📄︎", // 2
+    "🗏︎", // 3
+    "🗐︎", // 4
+    "🗄︎", // 5
+    "⌛︎", // 6
+    "🖮︎", // 7
+    "🖰︎", // 8
+    "🖲︎", // 9
 
     // Symbols 2 (:, ;, <, =, >, ?, @) (7 listed | 32 total Wingdings)
-    // '@' has no Wingdings equivalent and is present for compatibility.
-    "🖳︎",
-    "🖴︎",
-    "🖫︎",
-    "🖬︎",
-    "✇︎",
-    "✍︎",
-    "@",
+    // '@' has no Wingdings equivalent; it is present for compatibility.
+    "🖳︎", // :
+    "🖴︎", // ;
+    "🖫︎", // <
+    "🖬︎", // =
+    "✇︎",  // >
+    "✍︎",  // ?
+    "@",  // @
 
     // Uppercase alphabetical characters (A-Z) (26 listed | 58 total
     // Wingdings)
-    "✌︎",
-    "👌︎",
-    "👍︎",
-    "👎︎",
-    "☜︎",
-    "☞︎",
-    "☝︎",
-    "☟︎",
-    "✋︎",
-    "☺︎",
-    "😐︎",
-    "☹︎",
-    "💣︎",
-    "☠︎",
-    "⚐︎",
-    "🏱︎",
-    "✈︎",
-    "☼︎",
-    "💧︎",
-    "❄︎",
-    "🕆︎",
-    "✞︎",
-    "🕈︎",
-    "✠︎",
-    "✡︎",
-    "☪︎",
+    "✌︎",  // A
+    "👌︎", // B
+    "👍︎", // C
+    "👎︎", // D
+    "☜︎",  // E
+    "☞︎",  // F
+    "☝︎",  // G
+    "☟︎",  // H
+    "✋︎", // I
+    "☺︎",  // J
+    "😐︎", // K
+    "☹︎",  // L
+    "💣︎", // M
+    "☠︎",  // N
+    "⚐︎",  // O
+    "🏱︎", // P
+    "✈︎",  // Q
+    "☼︎",  // R
+    "💧︎", // S
+    "❄︎",  // T
+    "🕆︎", // U
+    "✞︎",  // V
+    "🕈︎", // W
+    "✠︎",  // X
+    "✡︎",  // Y
+    "☪︎",  // Z
 
     // Symbols 3 ([, \, ], ^, _, `) (6 listed | 64 total Wingdings)
-    "☯︎",
-    "ॐ︎",
-    "☸︎",
-    "♈︎",
-    "♉︎",
-    "♊︎",
+    "☯︎",  // [
+    "ॐ︎",  // (backslash)
+    "☸︎",  // ]
+    "♈︎", // ^
+    "♉︎", // _
+    "♊︎", // `
 
     // Lowercase alphabetical characters (a-z)
     // (26 listed | 90 total Wingdings)
-    "♋︎",
-    "♌︎",
-    "♍︎",
-    "♎︎",
-    "♏︎",
-    "♐︎",
-    "♑︎",
-    "♒︎",
-    "♓︎",
-    "🙰",
-    "🙵",
-    "●︎",
-    "❍︎",
-    "■︎",
-    "□︎",
-    "◻︎",
-    "❑︎",
-    "❒︎",
-    "⬧︎",
-    "⧫︎",
-    "◆︎",
-    "❖︎",
-    "⬥︎",
-    "⌧︎",
-    "⍓︎",
-    "⌘︎",
+    "♋︎", // a
+    "♌︎", // b
+    "♍︎", // c
+    "♎︎", // d
+    "♏︎", // e
+    "♐︎", // f
+    "♑︎", // g
+    "♒︎", // h
+    "♓︎", // i
+    "🙰",  // j
+    "🙵",  // k
+    "●︎",  // l
+    "❍︎",  // m
+    "■︎",  // n
+    "□︎",  // o
+    "◻︎",  // p
+    "❑︎",  // q
+    "❒︎",  // r
+    "⬧︎",  // s
+    "⧫︎",  // t
+    "◆︎",  // u
+    "❖︎",  // v
+    "⬥︎",  // w
+    "⌧︎",  // x
+    "⍓︎",  // y
+    "⌘︎",  // z
 
     // Symbols 4 ({, |, }, ~) (4 listed | 94 total Wingdings)
-    "❀︎",
-    "✿︎",
-    "❝︎",
-    "❞︎",
+    "❀︎", // {
+    "✿︎", // |
+    "❝︎", // }
+    "❞︎", // ~
 };
 
 static const_wd_array SORTED_WINGDINGS = {
@@ -211,7 +234,7 @@ const_wd_char ascii_char_to_wd_char(char ascii);
 [[nodiscard]]
 string ascii_str_to_wd_str(const char *ascii);
 
-const_wd_char *search_for_wd(const_wd_char);
+bool is_substr_wd_candidate(const char *);
 
 const_wd_char *search_sorted_wd(const_wd_char);
 

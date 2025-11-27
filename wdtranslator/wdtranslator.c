@@ -1,5 +1,6 @@
 #include "wdtranslator.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -9,25 +10,25 @@
 /* - UTILITY - */
 
 static inline size_t wd_char_index(const_wd_char *const chr) {
-  return (size_t)(chr - WINGDINGS);
+  return (size_t)(chr - SORTED_WINGDINGS);
 }
 
 /* - IMPLEMENTATION - */
 
 const_wd_char ascii_char_to_wd_char(const char ascii) {
-  return (ascii > ASCII_TO_WD_OFFSET) ? WINGDINGS[ascii - ASCII_TO_WD_OFFSET]
+  return (ascii >= ASCII_TO_WD_OFFSET) ? WINGDINGS[ascii - ASCII_TO_WD_OFFSET]
                                       : NULL;
 }
 
 string ascii_str_to_wd_str(const char *ascii_str) {
-  string wd_output = string_init(STR_DEFAULT_CAPACITY);
+  string wd_output = string();
   while (*ascii_str != '\0') {
     const char CHR = *ascii_str;
     const char *const wd_char = ascii_char_to_wd_char(CHR);
     if (wd_char != NULL)
-      string_append_raw_str(wd_output, wd_char);
+      string_append(wd_output, wd_char);
     else
-      string_append_char(wd_output, CHR);
+      string_append(wd_output, CHR);
     ascii_str++;
   }
   return wd_output;
@@ -49,26 +50,21 @@ const_wd_char *search_sorted_wd(const_wd_char wd_char) {
   return NULL;
 }
 
-const_wd_char *search_for_wd(const char *const wd_cand) {
-  switch ((WD_BEGIN_BYTE)*wd_cand) {
-  case WD_BEGIN_1:
-  case WD_BEGIN_2: {
-    char wingdings_container[WDS_LARGE];
-    size_t wd_length;
-    if (IS_SMALL_WD(wd_cand))
-      wd_length = WDS_SMALL;
-    else if (IS_MEDIUM_WD(wd_cand))
-      wd_length = WDS_MEDIUM;
-    else if (IS_LARGE_WD(wd_cand))
-      wd_length = WDS_LARGE;
-    else
-      break;
-    strncpy(wingdings_container, wd_cand, wd_length - 1);
-    wingdings_container[wd_length] = '\0';
-    return search_sorted_wd(wingdings_container);
+bool is_substr_wd_candidate(const char *const substr) {
+  if (IS_WD_BEGIN_BYTE(*substr)) {
+    WD_SIZE substr_len = 0;
+    while (substr_len < WDS_LARGE && substr[substr_len] != '\0')
+      substr_len++;
+    switch (substr_len) {
+    case WDS_SMALL:
+      return IS_SMALL_WD(substr);
+    case WDS_MEDIUM:
+      return IS_MEDIUM_WD(substr);
+    case WDS_LARGE:
+      return IS_LARGE_WD(substr);
+    }
   }
-  }
-  return NULL;
+  return false;
 }
 
 char wd_char_to_ascii_char(const_wd_char wd_char) {
@@ -82,15 +78,16 @@ string wd_str_to_ascii_str(const char *wd_str) {
   string ascii_str = string();
   size_t prev_index = 0;
   while (*wd_str != '\0') {
-    const_wd_char *const wd_char = search_for_wd(wd_str);
-    if (wd_char != NULL) {
-      const size_t CUR_INDEX = wd_char_index(wd_char);
-      string_append_char(ascii_str, SORTED_WD_TO_ASCII[CUR_INDEX]);
-      wd_str += CUR_INDEX - prev_index;
-      prev_index = CUR_INDEX;
+    if (is_substr_wd_candidate(wd_str)) {
+      const_wd_char *const wd_char = search_sorted_wd(wd_str);
+      const size_t WD_CHR_IDX = wd_char_index(wd_char);
+      string_append_char(ascii_str, SORTED_WD_TO_ASCII[WD_CHR_IDX]);
+      wd_str += WD_LEN_TYPE(*wd_char);
     } else {
-      string_append_char(ascii_str, *wd_str);
-      wd_str++;
+      // If no Wingdings candidates were found, we can skip ahead by the largest
+      // possible Wingdings character.
+      for (size_t i = 0; i < WDS_LARGE && *wd_str != '\0'; i++, wd_str++)
+        string_append_char(ascii_str, *wd_str);
     }
   }
   return ascii_str;

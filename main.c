@@ -61,8 +61,8 @@ typedef const struct {
 
 /* - TRANSLATOR DECLARATIONS - */
 
-static void ascii_to_wd_translator(const_string);
-static void wd_to_ascii_translator(const_string);
+static void ascii_to_wd_translator(const_string input);
+static void wd_to_ascii_translator(const_string input);
 
 /* - CONSTANTS - */
 
@@ -142,14 +142,15 @@ static inline void init(void) {
 
 /* - PROMPTS - */
 
-[[maybe_unused]]
+#ifdef _WIN32
 static inline bool prompt_chcp_change(void) {
-  puts("This program relies on UTF-8 encoding for full functionality.");
-  puts("Querying current code page...");
+  puts("This program relies on UTF-8 encoding for full functionality.\n"
+       "Querying current code page...");
   system("chcp");
   puts("Allow this program to run \"" WIN_UTF8_CHCP_CMD "\"?");
   return system("choice") == 1; // `choice` returns `1` by default for `y`.
 }
+#endif
 
 static inline wd_translator *prompt_translator(void) {
   puts("Which translator would you like to use?");
